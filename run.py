@@ -49,8 +49,15 @@ def get_rustdesk_id():
             print("[-] RustDesk ID not found. Retrying in 5 seconds...")
             time.sleep(5)
 
+# Infinite loop to keep Colab session alive
+def keep_alive():
+    print("\n[+] Keeping session alive. Do NOT close this Colab cell.")
+    while True:
+        time.sleep(60)  # Prevents Colab from disconnecting
+
 # Run setup
 install_rustdesk()
 configure_unattended_access()
 start_rustdesk()
 get_rustdesk_id()
+keep_alive()
