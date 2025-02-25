@@ -8,36 +8,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install Desktop Environment & VNC Server
+      - name: Install Desktop & VNC Server
         run: |
-          sudo apt update
-          sudo apt install -y xfce4 xfce4-goodies tightvncserver
-          vncserver :1 -geometry 1280x720 -depth 24
+          sudo apt update -qq
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver > /dev/null 2>&1
+          vncserver :1 -geometry 1280x720 -depth 24 > /dev/null 2>&1
           
       - name: Create Root User
         run: |
           sudo useradd -m -s /bin/bash user
           echo "user:root" | sudo chpasswd
-          echo "user ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/user
+          echo "user ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/user > /dev/null
           sudo mkdir -p /home/user/.vnc
           echo "securepass1" | vncpasswd -f > /home/user/.vnc/passwd
           sudo chown -R user:user /home/user/.vnc
           sudo chmod 600 /home/user/.vnc/passwd
-          vncserver -kill :1
-          sudo -u user vncserver :1 -geometry 1280x720 -depth 24
+          vncserver -kill :1 > /dev/null 2>&1
+          sudo -u user vncserver :1 -geometry 1280x720 -depth 24 > /dev/null 2>&1
 
       - name: Install ngrok & Start Tunnel
         run: |
-          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt update && sudo apt install -y ngrok
-          ngrok config add-authtoken 2P8v3I9oxTnCsnsVcKIOjd9Rt4Y_5jzoNH4hQQNfWcR8iQz8i
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc > /dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list > /dev/null
+          sudo apt update -qq && sudo apt install -y ngrok > /dev/null 2>&1
+          ngrok config add-authtoken 2P8v3I9oxTnCsnsVcKIOjd9Rt4Y_5jzoNH4hQQNfWcR8iQz8i > /dev/null 2>&1
           nohup ngrok tcp 5901 > /dev/null 2>&1 &
 
       - name: Display ngrok VNC Address
         run: |
           sleep 5
-          echo "Your VNC address:"
           curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
 
       - name: Keep the session alive
