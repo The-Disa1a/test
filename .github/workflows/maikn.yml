@@ -1,24 +1,25 @@
-name: SSH Terminal with Root Access
+name: VS Code Server Access
 
 on:
   workflow_dispatch:
 
 jobs:
-  ssh-access:
+  vscode-access:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install tmate
+      - name: Install Code-Server
         run: |
-          sudo apt update
-          sudo apt install -y tmate
+          curl -fsSL https://code-server.dev/install.sh | sh
+          mkdir -p ~/.config/code-server
+          echo "bind-addr: 0.0.0.0:8080" > ~/.config/code-server/config.yaml
+          echo "auth: password" >> ~/.config/code-server/config.yaml
+          echo "password: mysecretpassword" >> ~/.config/code-server/config.yaml
+          echo "cert: false" >> ~/.config/code-server/config.yaml
 
-      - name: Start tmate session
+      - name: Start VS Code Server
         run: |
-          tmate -S /tmp/tmate.sock new-session -d
-          tmate -S /tmp/tmate.sock wait tmate-ready
-          echo "SSH Access (Public):"
-          tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
-          echo "SSH Access (Web):"
-          tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
-          while true; do sleep 60; done  # Keeps session alive
+          nohup code-server --bind-addr 0.0.0.0:8080 --auth password &
+          sleep 10
+          echo "VS Code is running at: http://$(curl -s ifconfig.me):8080"
+          sleep 3600
