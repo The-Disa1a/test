@@ -17,9 +17,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Download Installation Script
+        run: curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh -o install.sh
+
       - name: Run Installation Script with Automated Input and Root Privileges
         run: |
-          echo -e "no\n" | sudo bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) | tee output.log
+          chmod +x install.sh
+          echo -e "no\n" | sudo ./install.sh | tee output.log
           cat output.log | grep -oP 'http[s]?://[^ ]+' > extracted_url.txt
 
       - name: Display Extracted URL
