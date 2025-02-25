@@ -1,58 +1,52 @@
-name: Setup RDP with CRD + XFCE4
+name: "GitHub RDP with VNC + Ngrok"
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   setup-rdp:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Update & Install Dependencies
+      - name: Update and Install XFCE & VNC
         run: |
           sudo apt update
-          sudo apt install -y wget sudo curl software-properties-common
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver wget unzip
 
-      - name: Create User and Setup
-        env:
-          USERNAME: ${{ secrets.RDP_USERNAME }}
-          PASSWORD: ${{ secrets.RDP_PASSWORD }}
+      - name: Set up VNC Server
         run: |
-          sudo useradd -m -s /bin/bash "$USERNAME"
-          echo "$USERNAME:$PASSWORD" | sudo chpasswd
-          sudo usermod -aG sudo "$USERNAME"
-          sudo mkdir -p /home/$USERNAME/.local/bin
-          echo 'export PATH=$PATH:/home/$USERNAME/.local/bin' | sudo tee -a /home/$USERNAME/.bashrc
-          sudo chown -R $USERNAME:$USERNAME /home/$USERNAME
+          mkdir -p ~/.vnc
+          echo "12345678" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
 
-      - name: Install Desktop & CRD
-        run: |
-          sudo apt update
-          sudo apt install -y xfce4 xfce4-goodies tightvncserver
-          wget https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb
-          sudo dpkg -i chrome-remote-desktop_current_amd64.deb || sudo apt install -fy
-          echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" | sudo tee /etc/chrome-remote-desktop-session
-          sudo systemctl disable lightdm.service
-          sudo apt install -y xscreensaver dbus-x11
-          sudo usermod -aG chrome-remote-desktop $USERNAME
+          cat > ~/.vnc/xstartup <<EOF
+          #!/bin/bash
+          xrdb $HOME/.Xresources
+          startxfce4 &
+          EOF
+          chmod +x ~/.vnc/xstartup
 
-      - name: Setup Storage
-        run: |
-          sudo mkdir -p /storage
-          sudo chmod 777 /storage
-          sudo chown "$USERNAME":"$USERNAME" /storage
-          sudo mkdir -p /home/"$USERNAME"/storage
-          sudo mount --bind /storage /home/"$USERNAME"/storage
+          vncserver -kill :1 || true
+          vncserver :1 -geometry 1024x768 -depth 24
 
-      - name: Install CRD Session & Run
-        env:
-          CRD_COMMAND: ${{ secrets.CRD_COMMAND }}
-          PIN: ${{ secrets.CRD_PIN }}
-          USERNAME: ${{ secrets.RDP_USERNAME }}
+      - name: Download & Install Ngrok
         run: |
-          su - "$USERNAME" -c "$CRD_COMMAND --pin=$PIN"
-          sudo service chrome-remote-desktop start
+          wget -q -O ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip
+          unzip ngrok.zip
+          chmod +x ngrok
+          sudo mv ngrok /usr/local/bin/
 
-      - name: Keep Session Alive
+      - name: Authenticate Ngrok
         run: |
-          while true; do echo "I'm alive"; sleep 300; done
+          ngrok authtoken 2P8v3I9oxTnCsnsVcKIOjd9Rt4Y_5jzoNH4hQQNfWcR8iQz8i
+
+      - name: Start Ngrok & Expose VNC
+        run: |
+          nohup ngrok tcp 5901 --log=stdout &>/dev/null &
+
+      - name: Get Ngrok URL
+        run: |
+          sleep 5
+          curl -s localhost:4040/api/tunnels | grep -o '"public_url":"tcp:[^"]*' | cut -d'"' -f4
