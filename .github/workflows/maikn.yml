@@ -16,12 +16,12 @@ jobs:
           
       - name: Create Root User
         run: |
-          sudo useradd -m -s /bin/bash rootuser
+          sudo useradd -m -s /bin/bash user
           echo "user:root" | sudo chpasswd
-          echo "user ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/rootuser
+          echo "user ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/user
           sudo mkdir -p /home/user/.vnc
-          echo "123456" | vncpasswd -f > /home/rootuser/.vnc/passwd
-          sudo chown -R user:root /home/user/.vnc
+          echo "securepass1" | vncpasswd -f > /home/user/.vnc/passwd
+          sudo chown -R user:user /home/user/.vnc
           sudo chmod 600 /home/user/.vnc/passwd
           vncserver -kill :1
           sudo -u user vncserver :1 -geometry 1280x720 -depth 24
