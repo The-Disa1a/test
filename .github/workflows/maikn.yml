@@ -1,19 +1,26 @@
+name: Install 3x-UI
 
-name: Windows - Anydesk
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
+
 jobs:
-  build:
-    name: Start Building...
-    runs-on: windows-latest
-    timeout-minutes: 9999
-    
+  install:
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Downloading & Installing Essentials
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Installation Script with Automated Input
         run: |
-          Invoke-WebRequest -Uri "https://gitlab.com/chamod12/anydesk-windows-rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
-          cmd /c Downloads.bat
-      - name: Log In To AnyDesk
-        run: cmd /c start.bat
-      - name: Time Counter
-        run: python time.py
+          echo -e "no\n" | bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh) | tee output.log
+          cat output.log | grep -oP 'http[s]?://[^ ]+' > extracted_url.txt
+
+      - name: Display Extracted URL
+        run: cat extracted_url.txt
