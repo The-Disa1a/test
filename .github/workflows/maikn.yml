@@ -1,8 +1,7 @@
-name: Windows - Anydesk
 
+name: Windows - Anydesk
 on:
   workflow_dispatch:
-
 jobs:
   build:
     name: Start Building...
@@ -12,11 +11,9 @@ jobs:
     steps:
       - name: Downloading & Installing Essentials
         run: |
-          Invoke-WebRequest -Uri "https://www.dropbox.com/s/ei73gt7vevxck2t/Downloads.bat?dl=1" -OutFile "Downloads.bat"
+          Invoke-WebRequest -Uri "https://gitlab.com/chamod12/anydesk-windows-rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
           cmd /c Downloads.bat
-
       - name: Log In To AnyDesk
         run: cmd /c start.bat
-
       - name: Time Counter
         run: python time.py
