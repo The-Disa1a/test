@@ -50,3 +50,4 @@ jobs:
         run: |
           sleep 5
           curl -s localhost:4040/api/tunnels | grep -o '"public_url":"tcp:[^"]*' | cut -d'"' -f4
+          sleep 3000
