@@ -17,8 +17,11 @@ jobs:
           unzip ngrok.zip
           sudo mv ngrok /usr/local/bin/
       
-      - name: Start VNC Server
+      - name: Start VNC Server with Password
         run: |
+          mkdir -p ~/.vnc
+          echo "123456" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
           vncserver :1 -geometry 1280x720 -depth 24
           echo "VNC Server started on display :1"
       
