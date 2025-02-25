@@ -1,66 +1,58 @@
-name: RDP with VNC + Root User + ngrok
+name: Setup RDP with CRD + XFCE4
 
 on:
   workflow_dispatch:
 
 jobs:
-  rdp-vnc:
+  setup-rdp:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install Desktop Environment & VNC Server
+      - name: Update & Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y xfce4 xfce4-goodies tightvncserver dbus-x11 x11-xserver-utils
+          sudo apt install -y wget sudo curl software-properties-common
 
-      - name: Create Root User
+      - name: Create User and Setup
+        env:
+          USERNAME: ${{ secrets.RDP_USERNAME }}
+          PASSWORD: ${{ secrets.RDP_PASSWORD }}
         run: |
-          sudo useradd -m -s /bin/bash user
-          echo "user:rootpass" | sudo chpasswd
-          echo "user ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/user
-          sudo mkdir -p /home/user/.vnc
-          echo "rootpass" | vncpasswd -f > /home/user/.vnc/passwd
-          sudo chown -R user:user /home/user/.vnc
-          sudo chmod 600 /home/user/.vnc/passwd
+          sudo useradd -m -s /bin/bash "$USERNAME"
+          echo "$USERNAME:$PASSWORD" | sudo chpasswd
+          sudo usermod -aG sudo "$USERNAME"
+          sudo mkdir -p /home/$USERNAME/.local/bin
+          echo 'export PATH=$PATH:/home/$USERNAME/.local/bin' | sudo tee -a /home/$USERNAME/.bashrc
+          sudo chown -R $USERNAME:$USERNAME /home/$USERNAME
 
-      - name: Kill Existing VNC Session (if any)
+      - name: Install Desktop & CRD
         run: |
-          vncserver -kill :1 || true
-          sudo pkill Xtightvnc || true
+          sudo apt update
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver
+          wget https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb
+          sudo dpkg -i chrome-remote-desktop_current_amd64.deb || sudo apt install -fy
+          echo "exec /etc/X11/Xsession /usr/bin/xfce4-session" | sudo tee /etc/chrome-remote-desktop-session
+          sudo systemctl disable lightdm.service
+          sudo apt install -y xscreensaver dbus-x11
+          sudo usermod -aG chrome-remote-desktop $USERNAME
 
-      - name: Fix Xauthority and Create xstartup Script
+      - name: Setup Storage
         run: |
-          sudo -u user touch /home/user/.Xauthority
-          sudo -u user mkdir -p /home/user/.vnc
-          cat <<EOF | sudo -u user tee /home/user/.vnc/xstartup
-          #!/bin/bash
-          xrdb $HOME/.Xresources
-          export XKL_XMODMAP_DISABLE=1
-          export XDG_RUNTIME_DIR=/run/user/\$(id -u)
-          export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/\$(id -u)/bus"
-          startxfce4 &
-          EOF
-          sudo chmod +x /home/user/.vnc/xstartup
+          sudo mkdir -p /storage
+          sudo chmod 777 /storage
+          sudo chown "$USERNAME":"$USERNAME" /storage
+          sudo mkdir -p /home/"$USERNAME"/storage
+          sudo mount --bind /storage /home/"$USERNAME"/storage
 
-      - name: Start VNC Server as User
+      - name: Install CRD Session & Run
+        env:
+          CRD_COMMAND: ${{ secrets.CRD_COMMAND }}
+          PIN: ${{ secrets.CRD_PIN }}
+          USERNAME: ${{ secrets.RDP_USERNAME }}
         run: |
-          sudo -u user vncserver -kill :1 || true
-          sudo -u user vncserver :1 -geometry 1280x720 -depth 24
+          su - "$USERNAME" -c "$CRD_COMMAND --pin=$PIN"
+          sudo service chrome-remote-desktop start
 
-      - name: Install ngrok & Start Tunnel
+      - name: Keep Session Alive
         run: |
-          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt update && sudo apt install -y ngrok
-          ngrok config add-authtoken 2P8v3I9oxTnCsnsVcKIOjd9Rt4Y_5jzoNH4hQQNfWcR8iQz8i
-          nohup ngrok tcp 5901 > /dev/null 2>&1 &
-          sleep 5  # Allow ngrok to start properly
-
-      - name: Display ngrok VNC Address
-        run: |
-          sleep 5
-          echo "Your VNC address:"
-          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
-
-      - name: Keep the session alive
-        run: sleep 3600
+          while true; do echo "I'm alive"; sleep 300; done
