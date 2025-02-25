@@ -1,25 +1,44 @@
-name: VS Code Server Access
+name: RDP with VNC + Root User + ngrok
 
 on:
   workflow_dispatch:
 
 jobs:
-  vscode-access:
+  rdp-vnc:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install Code-Server
+      - name: Install Desktop Environment & VNC Server
         run: |
-          curl -fsSL https://code-server.dev/install.sh | sh
-          mkdir -p ~/.config/code-server
-          echo "bind-addr: 0.0.0.0:8080" > ~/.config/code-server/config.yaml
-          echo "auth: password" >> ~/.config/code-server/config.yaml
-          echo "password: mysecretpassword" >> ~/.config/code-server/config.yaml
-          echo "cert: false" >> ~/.config/code-server/config.yaml
+          sudo apt update
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver
+          vncserver :1 -geometry 1280x720 -depth 24
+          
+      - name: Create Root User
+        run: |
+          sudo useradd -m -s /bin/bash rootuser
+          echo "user:root" | sudo chpasswd
+          echo "user ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/rootuser
+          sudo mkdir -p /home/user/.vnc
+          echo "123456" | vncpasswd -f > /home/rootuser/.vnc/passwd
+          sudo chown -R user:root /home/user/.vnc
+          sudo chmod 600 /home/user/.vnc/passwd
+          vncserver -kill :1
+          sudo -u user vncserver :1 -geometry 1280x720 -depth 24
 
-      - name: Start VS Code Server
+      - name: Install ngrok & Start Tunnel
         run: |
-          nohup code-server --bind-addr 0.0.0.0:8080 --auth password &
-          sleep 10
-          echo "VS Code is running at: http://$(curl -s ifconfig.me):8080"
-          sleep 3600
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install -y ngrok
+          ngrok config add-authtoken 2P8v3I9oxTnCsnsVcKIOjd9Rt4Y_5jzoNH4hQQNfWcR8iQz8i
+          nohup ngrok tcp 5901 > /dev/null 2>&1 &
+
+      - name: Display ngrok VNC Address
+        run: |
+          sleep 5
+          echo "Your VNC address:"
+          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+
+      - name: Keep the session alive
+        run: sleep 3600
