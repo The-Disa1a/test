@@ -1,0 +1,35 @@
+name: VNC with Ngrok
+
+on: [push, workflow_dispatch]
+
+jobs:
+  vnc-ngrok:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install VNC Server and Ngrok
+        run: |
+          sudo apt update
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver
+          wget -O ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip
+          unzip ngrok.zip
+          sudo mv ngrok /usr/local/bin/
+      
+      - name: Start VNC Server
+        run: |
+          vncserver :1 -geometry 1280x720 -depth 24
+          echo "VNC Server started on display :1"
+      
+      - name: Start Ngrok Tunnel
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: |
+          ngrok authtoken $NGROK_AUTH_TOKEN
+          nohup ngrok tcp 5901 --region us > /dev/null 2>&1 &
+          sleep 5
+          curl -s http://localhost:4040/api/tunnels | jq -r .tunnels[0].public_url
+      
+      - name: Keep Alive
+        run: sleep 3600
