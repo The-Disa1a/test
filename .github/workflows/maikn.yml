@@ -1,7 +1,7 @@
 name: SSH Terminal with Root Access
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
 
 jobs:
   ssh-access:
@@ -21,6 +21,4 @@ jobs:
           tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
           echo "SSH Access (Web):"
           tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
-
-      - name: Keep session alive
-        run: sleep 3600  # Keeps session active for 1 hour
+          while true; do sleep 60; done  # Keeps session alive
