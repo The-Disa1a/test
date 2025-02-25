@@ -16,13 +16,20 @@ jobs:
       - name: Create Root User
         run: |
           sudo useradd -m -s /bin/bash user
-          echo "user:root" | sudo chpasswd
+          echo "user:rootpass" | sudo chpasswd
           echo "user ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/user
           sudo mkdir -p /home/user/.vnc
-          echo "securepass1" | vncpasswd -f > /home/user/.vnc/passwd
+          echo "rootpass" | vncpasswd -f > /home/user/.vnc/passwd
           sudo chown -R user:user /home/user/.vnc
           sudo chmod 600 /home/user/.vnc/passwd
-          vncserver -kill :1
+          
+      - name: Kill Existing VNC Session (if any)
+        run: |
+          vncserver -kill :1 || true
+          sudo pkill Xtightvnc || true
+
+      - name: Start VNC Server as User
+        run: |
           sudo -u user vncserver :1 -geometry 1280x720 -depth 24
 
       - name: Install ngrok & Start Tunnel
