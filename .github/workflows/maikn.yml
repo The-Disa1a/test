@@ -11,8 +11,8 @@ jobs:
       - name: Install Desktop Environment & VNC Server
         run: |
           sudo apt update
-          sudo apt install -y xfce4 xfce4-goodies tightvncserver
-          
+          sudo apt install -y xfce4 xfce4-goodies tightvncserver dbus-x11 x11-xserver-utils
+
       - name: Create Root User
         run: |
           sudo useradd -m -s /bin/bash user
@@ -22,14 +22,29 @@ jobs:
           echo "rootpass" | vncpasswd -f > /home/user/.vnc/passwd
           sudo chown -R user:user /home/user/.vnc
           sudo chmod 600 /home/user/.vnc/passwd
-          
+
       - name: Kill Existing VNC Session (if any)
         run: |
           vncserver -kill :1 || true
           sudo pkill Xtightvnc || true
 
+      - name: Fix Xauthority and Create xstartup Script
+        run: |
+          sudo -u user touch /home/user/.Xauthority
+          sudo -u user mkdir -p /home/user/.vnc
+          cat <<EOF | sudo -u user tee /home/user/.vnc/xstartup
+          #!/bin/bash
+          xrdb $HOME/.Xresources
+          export XKL_XMODMAP_DISABLE=1
+          export XDG_RUNTIME_DIR=/run/user/\$(id -u)
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/\$(id -u)/bus"
+          startxfce4 &
+          EOF
+          sudo chmod +x /home/user/.vnc/xstartup
+
       - name: Start VNC Server as User
         run: |
+          sudo -u user vncserver -kill :1 || true
           sudo -u user vncserver :1 -geometry 1280x720 -depth 24
 
       - name: Install ngrok & Start Tunnel
@@ -39,6 +54,7 @@ jobs:
           sudo apt update && sudo apt install -y ngrok
           ngrok config add-authtoken 2P8v3I9oxTnCsnsVcKIOjd9Rt4Y_5jzoNH4hQQNfWcR8iQz8i
           nohup ngrok tcp 5901 > /dev/null 2>&1 &
+          sleep 5  # Allow ngrok to start properly
 
       - name: Display ngrok VNC Address
         run: |
